@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: customer-Deployment
+  name: customer-deployment
   namespace: sales-test-ns 
 spec:
   replicas: 2
@@ -12,11 +12,11 @@ spec:
       maxSurge: 1
   selector:
     matchLabels:
-      app: customer-app
+      app: customers-microservice
   template:
     metadata:
       labels:
-        app: customer-app
+        app: customers-microservice
     spec:
       affinity:
         podAntiAffinity:
@@ -43,7 +43,7 @@ spec:
             ephemeral-storage: "500Mi"
         startupProbe:
             httpGet:
-              path: /api/v1/health
+              path: /api/v1/customers/health
               port: 3000
               scheme: HTTP
             periodSeconds: 5
@@ -52,7 +52,7 @@ spec:
 
         readinessProbe:
           httpGet:
-            path: /api/v1/health
+            path: /api/v1/customers/health
             port: 3000
             scheme: HTTP
           initialDelaySeconds: 0
@@ -63,7 +63,7 @@ spec:
 
         livenessProbe:
           httpGet:
-            path: /api/v1/health
+            path: /api/v1/customers/health
             port: 3000
             scheme: HTTP
           initialDelaySeconds: 0
