@@ -3,6 +3,8 @@ kind: Deployment
 metadata:
   name: customer-deployment
   namespace: opslora-test-ns 
+  labels:
+    app: customers
 spec:
   replicas: 2
   strategy:
@@ -25,7 +27,7 @@ spec:
             podAffinityTerm:
               labelSelector:
                 matchLabels:
-                  app: customer-app
+                  app: customers-microservice
               topologyKey: kubernetes.io/hostname
       containers:
       - name: customer-container
