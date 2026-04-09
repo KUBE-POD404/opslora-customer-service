@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: customer-deployment
-  namespace: sales-test-ns 
+  namespace: opslora-test-ns 
 spec:
   replicas: 2
   strategy:
