@@ -82,3 +82,9 @@ jobs:
             echo "notify_title=Snyk Passed" >> "$GITHUB_OUTPUT"
             echo "notify_summary=No blocking Snyk issues were found in the Python/FastAPI service." >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Stop pipeline - snyk scan failed
+        if: ${{ steps.snyk-check.outcome == 'failure' }}
+        run: |
+          echo "Snyk scan failed. Stopping pipeline."
+          exit 1
