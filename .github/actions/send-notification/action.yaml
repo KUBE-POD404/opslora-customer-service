@@ -141,5 +141,5 @@ runs:
                         type: plain_text
                         text: "View Workflow Run"
                         emoji: true
-                      url: "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                      url: "${{ inputs.sonar_host_url }}/dashboard?id=${{ inputs.sonar_project_key }}"
                       style: danger
