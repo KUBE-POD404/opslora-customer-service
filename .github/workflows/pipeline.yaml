@@ -1,0 +1,121 @@
+name: Customer service CI
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - main
+
+concurrency:
+  group: customer-ci-${{ github.repository }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  get-email:
+    name: Get latest commit author
+    runs-on: ubuntu-latest
+    outputs:
+      email: ${{ steps.author.outputs.email }}
+      name: ${{ steps.author.outputs.name }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get latest commit author
+        id: author
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            SHA="${{ github.event.pull_request.head.sha }}"
+          else
+            SHA="${{ github.sha }}"
+          fi
+
+          git log -1 "$SHA" || echo "Commit not found!"
+
+          EMAIL=$(git show -s --format='%ae' "$SHA")
+          NAME=$(git show -s --format='%an' "$SHA")
+
+          echo "email=$EMAIL" >> "$GITHUB_OUTPUT"
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+
+          echo "Resolved email: $EMAIL"
+          echo "Resolved name: $NAME"
+
+  sonar-scan:
+    name: SonarQube scan
+    uses: ./.github/workflows/sonar-scan.yaml
+    secrets: inherit
+
+  snyk-scan:
+    name: Snyk Scan
+    needs:
+      - sonar-scan
+    if: ${{ needs.sonar-scan.outputs.quality_gate_status == 'PASSED' }}
+    uses: ./.github/workflows/snyk-scan.yaml
+    secrets: inherit
+
+  notify:
+    name: Notification for sonar and snyk
+    needs:
+      - sonar-scan
+      - snyk-scan
+      - get-email
+    if: ${{ always() && (needs.sonar-scan.outputs.quality_gate_status == 'FAILED' || needs.snyk-scan.outputs.snyk_status == 'failure') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Debug notification values
+        run: |
+          echo "Author email: '${{ needs.get-email.outputs.email }}'"
+          echo "Author name: '${{ needs.get-email.outputs.name }}'"
+          echo "Sonar status: '${{ needs.sonar-scan.outputs.quality_gate_status }}'"
+          echo "Snyk status: '${{ needs.snyk-scan.outputs.snyk_status }}'"
+
+      - name: Send Sonar notification
+        if: ${{ needs.sonar-scan.outputs.quality_gate_status == 'FAILED' }}
+        uses: ./.github/actions/send-notification
+        with:
+          pipeline_name: ${{ github.workflow }}
+          repository_name: ${{ github.repository }}
+          failure_reason: "SonarQube Quality Gate Failed"
+          author: ${{ needs.get-email.outputs.name || github.actor }}
+          smtp_username: ${{ secrets.SMTP_USERNAME }}
+          smtp_password: ${{ secrets.SMTP_PASSWORD }}
+          mail_from: ${{ secrets.MAIL_FROM }}
+          mail_to: ${{ needs.get-email.outputs.email }}
+          slack_webhook: ${{ secrets.SLACK_INCOMING_WEBHOOK }}
+          sonar_host_url: ${{ secrets.SONAR_HOST_URL }}
+          sonar_project_key: ${{ secrets.SONAR_PROJECT_KEY }}
+
+      - name: Send Snyk notification
+        if: ${{ needs.snyk-scan.outputs.snyk_status == 'failure' }}
+        uses: ./.github/actions/send-notification
+        with:
+          pipeline_name: ${{ github.workflow }}
+          repository_name: ${{ github.repository }}
+          failure_reason: "Snyk Scan Failed"
+          author: ${{ needs.get-email.outputs.name || github.actor }}
+          smtp_username: ${{ secrets.SMTP_USERNAME }}
+          smtp_password: ${{ secrets.SMTP_PASSWORD }}
+          mail_from: ${{ secrets.MAIL_FROM }}
+          mail_to: ${{ needs.get-email.outputs.email }}
+          slack_webhook: ${{ secrets.SLACK_INCOMING_WEBHOOK }}
+          sonar_host_url: ${{ secrets.SONAR_HOST_URL }}
+          sonar_project_key: ${{ secrets.SONAR_PROJECT_KEY }}
+
+  # image-build-scan:
+  #   needs:
+  #     - sonar-scan
+  #     - snyk-scan
+  #     - notify
+  #   if: ${{ needs.sonar-scan.outputs.quality_gate_status == 'PASSED' && needs.snyk-scan.outputs.snyk_status == 'success' }}
+  #   uses: ./.github/workflows/docker-scan.yaml
+  #   secrets: inheritv

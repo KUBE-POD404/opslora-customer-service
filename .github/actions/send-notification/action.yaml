@@ -1,0 +1,145 @@
+name: Send Notification
+description: Send email and Slack notification
+
+inputs:
+  pipeline_name:
+    required: true
+  repository_name:
+    required: true
+  failure_reason:
+    required: true
+  author:
+    required: true
+  smtp_username:
+    required: true
+  smtp_password:
+    required: true
+  mail_from:
+    required: true
+  mail_to:
+    required: true
+  slack_webhook:
+    required: true
+  sonar_host_url:
+    required: true
+  sonar_project_key:
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Send email
+      uses: hilarion5/send-mail@v1
+      with:
+        smtp-server: smtp.hostinger.com
+        smtp-port: 587
+        smtp-secure: false
+        username: ${{ inputs.smtp_username }}
+        password: ${{ inputs.smtp_password }}
+        from-email: "Opslora CI-Alerts <${{ inputs.mail_from }}>"
+        to-email: ${{ inputs.mail_to }}
+        subject: "${{ inputs.pipeline_name }} FAILED"
+        html: |
+          <div style="margin:0;padding:24px;background-color:#f4f7fb;font-family:Arial,Helvetica,sans-serif;color:#1f2937;">
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:700px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
+              <tr>
+                <td style="background:#b91c1c;padding:18px 24px;">
+                  <h2 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;">
+                    Pipeline Failure Alert
+                  </h2>
+                </td>
+              </tr>
+
+              <tr>
+                <td style="padding:24px;">
+                  <p style="margin:0 0 18px 0;font-size:18px;font-weight:700;color:#111827;">
+                    ${{ inputs.pipeline_name }} - ${{ inputs.repository_name }}
+                  </p>
+
+                  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
+                    <tr>
+                      <td style="padding:12px 0;border-top:1px solid #e5e7eb;">
+                        <span style="display:block;font-size:12px;font-weight:700;letter-spacing:0.04em;color:#6b7280;">STATUS</span>
+                        <span style="display:inline-block;margin-top:6px;padding:6px 10px;background:#fee2e2;color:#991b1b;border-radius:999px;font-size:12px;font-weight:700;">
+                          FAILED
+                        </span>
+                      </td>
+                    </tr>
+
+                    <tr>
+                      <td style="padding:12px 0;border-top:1px solid #e5e7eb;">
+                        <span style="display:block;font-size:12px;font-weight:700;letter-spacing:0.04em;color:#6b7280;">REASON</span>
+                        <span style="display:block;margin-top:6px;font-size:15px;color:#111827;">
+                          ${{ inputs.failure_reason }}
+                        </span>
+                      </td>
+                    </tr>
+
+                    <tr>
+                      <td style="padding:12px 0;border-top:1px solid #e5e7eb;">
+                        <span style="display:block;font-size:12px;font-weight:700;letter-spacing:0.04em;color:#6b7280;">AUTHOR</span>
+                        <span style="display:block;margin-top:6px;font-size:15px;color:#111827;">
+                          ${{ inputs.author }}
+                        </span>
+                      </td>
+                    </tr>
+                  </table>
+
+                  <div style="margin-top:24px;">
+                    <a href="${{ inputs.sonar_host_url }}/dashboard?id=${{ inputs.sonar_project_key }}"
+                       style="display:inline-block;padding:12px 18px;background:#2563eb;color:#ffffff;text-decoration:none;border-radius:8px;font-size:14px;font-weight:700;">
+                      View Workflow Run
+                    </a>
+                  </div>
+                </td>
+              </tr>
+
+              <tr>
+                <td style="padding:16px 24px;background:#f9fafb;border-top:1px solid #e5e7eb;font-size:12px;color:#6b7280;">
+                  This is an automated CI/CD notification from GitHub Actions.
+                </td>
+              </tr>
+            </table>
+          </div>
+
+    - name: Post to Slack
+      uses: slackapi/slack-github-action@v3.0.1
+      with:
+        webhook: ${{ inputs.slack_webhook }}
+        webhook-type: incoming-webhook
+        payload: |
+          text: "🚨 ${{ inputs.pipeline_name }} failed"
+          attachments:
+            - color: "#dc2626"   # 🔴 RED (failure)
+              blocks:
+                - type: header
+                  text:
+                    type: plain_text
+                    text: "🚨 Pipeline Failure Alert"
+                    emoji: true
+
+                - type: section
+                  fields:
+                    - type: mrkdwn
+                      text: "*Pipeline:*\n${{ inputs.pipeline_name }}"
+                    - type: mrkdwn
+                      text: "*Repository:*\n${{ inputs.repository_name }}"
+                    - type: mrkdwn
+                      text: "*Status:*\nFAILED"
+                    - type: mrkdwn
+                      text: "*Author:*\n${{ inputs.author }}"
+
+                - type: section
+                  text:
+                    type: mrkdwn
+                    text: "*Reason:*\n${{ inputs.failure_reason }}"
+
+                - type: actions
+                  elements:
+                    - type: button
+                      text:
+                        type: plain_text
+                        text: "View Workflow Run"
+                        emoji: true
+                      url: "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                      style: danger

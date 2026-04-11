@@ -1,0 +1,84 @@
+name: Snyk Scan
+ 
+on:
+  workflow_call:
+    outputs:
+      snyk_status:
+        description: "Snyk outcome"
+        value: ${{ jobs.snyk-scan.outputs.snyk_status }}
+      notify_tool:
+        description: "Tool name for notification"
+        value: ${{ jobs.snyk-scan.outputs.notify_tool }}
+      notify_title:
+        description: "Notification title"
+        value: ${{ jobs.snyk-scan.outputs.notify_title }}
+      notify_summary:
+        description: "Notification summary"
+        value: ${{ jobs.snyk-scan.outputs.notify_summary }}
+ 
+jobs:
+  snyk-scan:
+    runs-on: ubuntu-latest
+    outputs:
+      snyk_status: ${{ steps.set_outputs.outputs.snyk_status }}
+      notify_tool: ${{ steps.set_outputs.outputs.notify_tool }}
+      notify_title: ${{ steps.set_outputs.outputs.notify_title }}
+      notify_summary: ${{ steps.set_outputs.outputs.notify_summary }}
+ 
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+ 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: requirements.txt
+ 
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+ 
+      - name: Run Snyk test for Python dependencies
+        id: snyk-check
+        uses: snyk/actions/python@master
+        with:
+          args: --file=requirements.txt --severity-threshold=high --project-name=${{ github.event.repository.name }} --target-reference=${{ github.ref_name }}
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        continue-on-error: true
+ 
+      - name: Setup Snyk CLI
+        if: ${{ github.ref_name == 'deploying' }}
+        uses: snyk/actions/setup@master
+ 
+      - name: Publish project snapshot to Snyk UI
+        if: ${{ github.ref_name == 'deploying' }}
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: |
+          snyk monitor \
+            --file=requirements.txt \
+            --project-name=${{ github.event.repository.name }} \
+            --target-reference=${{ github.ref_name }}
+ 
+      - name: Show Snyk outcome
+        run: |
+          echo "Snyk outcome: ${{ steps.snyk-check.outcome }}"
+ 
+      - name: Set normalized outputs
+        id: set_outputs
+        shell: bash
+        run: |
+          echo "snyk_status=${{ steps.snyk-check.outcome }}" >> "$GITHUB_OUTPUT"
+          echo "notify_tool=snyk" >> "$GITHUB_OUTPUT"
+ 
+          if [ "${{ steps.snyk-check.outcome }}" = "failure" ]; then
+            echo "notify_title=Snyk Security Scan Failed" >> "$GITHUB_OUTPUT"
+            echo "notify_summary=Dependency vulnerabilities or policy issues were found in the Python/FastAPI service." >> "$GITHUB_OUTPUT"
+          else
+            echo "notify_title=Snyk Passed" >> "$GITHUB_OUTPUT"
+            echo "notify_summary=No blocking Snyk issues were found in the Python/FastAPI service." >> "$GITHUB_OUTPUT"
+          fi
