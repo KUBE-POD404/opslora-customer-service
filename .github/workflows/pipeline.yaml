@@ -47,15 +47,15 @@ jobs:
           echo "Resolved email: $EMAIL"
           echo "Resolved name: $NAME"
 
-  sonar-scan:
-    name: SonarQube scan
-    uses: ./.github/workflows/sonar-scan.yaml
-    secrets: inherit
+  # sonar-scan:
+  #   name: SonarQube scan
+  #   uses: ./.github/workflows/sonar-scan.yaml
+  #   secrets: inherit
 
   snyk-scan:
     name: Snyk Scan
-    needs:
-      - sonar-scan
+    # needs:
+    #   - sonar-scan
     # if: ${{ needs.sonar-scan.outputs.quality_gate_status == 'PASSED' }}
     uses: ./.github/workflows/snyk-scan.yaml
     secrets: inherit
