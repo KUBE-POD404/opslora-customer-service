@@ -78,8 +78,7 @@ jobs:
         run: |
           snyk monitor \
             --file=requirements.txt \
-            --project-name=${{ github.repository }} \
-            --target-reference=${{ github.ref_name }}
+            --project-name=${{ github.repository }} 
 
       - name: Debug - Fetch Snyk project details
         # if: ${{ github.ref_name == 'deploying' }}
