@@ -6,7 +6,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.exceptions.custom_exceptions import AppException
 
 
-def app_exception_handler(request: Request, exc: AppException):
+async def app_exception_handler(request: Request, exc: AppException):
     _ = request
     return JSONResponse(
         status_code=exc.status_code,
@@ -16,7 +16,7 @@ def app_exception_handler(request: Request, exc: AppException):
     )
 
 
-def http_exception_handler(request: Request, exc: StarletteHTTPException):
+async def http_exception_handler(request: Request, exc: StarletteHTTPException):
     _ = request
     return JSONResponse(
         status_code=exc.status_code,
@@ -26,7 +26,7 @@ def http_exception_handler(request: Request, exc: StarletteHTTPException):
     )
 
 
-def validation_exception_handler(request: Request, exc: RequestValidationError):
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
     _ = request
     return JSONResponse(
         status_code=422,
@@ -37,9 +37,8 @@ def validation_exception_handler(request: Request, exc: RequestValidationError):
     )
 
 
-def generic_exception_handler(request: Request, exc: Exception):
+async def generic_exception_handler(request: Request, exc: Exception):
     _ = request
-    _ = exc
     return JSONResponse(
         status_code=500,
         content={
