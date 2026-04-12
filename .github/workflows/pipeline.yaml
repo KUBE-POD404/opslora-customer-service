@@ -47,10 +47,10 @@ jobs:
           echo "Resolved email: $EMAIL"
           echo "Resolved name: $NAME"
 
-  # sonar-scan:
-  #   name: SonarQube scan
-  #   uses: ./.github/workflows/sonar-scan.yaml
-  #   secrets: inherit
+  sonar-scan:
+    name: SonarQube scan
+    uses: ./.github/workflows/sonar-scan.yaml
+    secrets: inherit
 
   snyk-scan:
     name: Snyk Scan
@@ -60,58 +60,58 @@ jobs:
     uses: ./.github/workflows/snyk-scan.yaml
     secrets: inherit
 
-  # notify:
-  #   name: Notification for sonar and snyk
-  #   needs:
-  #     - sonar-scan
-  #     - snyk-scan
-  #     - get-email
-  #   if: ${{ always() && (needs.sonar-scan.outputs.quality_gate_status == 'FAILED' || needs.snyk-scan.outputs.snyk_status == 'failure') }}
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Checkout code
-  #       uses: actions/checkout@v4
+  notify:
+    name: Notification for sonar and snyk
+    needs:
+      - sonar-scan
+      - snyk-scan
+      - get-email
+    if: ${{ always() && (needs.sonar-scan.outputs.quality_gate_status == 'FAILED' || needs.snyk-scan.outputs.snyk_status == 'failure') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-  #     - name: Debug notification values
-  #       run: |
-  #         echo "Author email: '${{ needs.get-email.outputs.email }}'"
-  #         echo "Author name: '${{ needs.get-email.outputs.name }}'"
-  #         echo "Sonar status: '${{ needs.sonar-scan.outputs.quality_gate_status }}'"
-  #         echo "Snyk status: '${{ needs.snyk-scan.outputs.snyk_status }}'"
+      - name: Debug notification values
+        run: |
+          echo "Author email: '${{ needs.get-email.outputs.email }}'"
+          echo "Author name: '${{ needs.get-email.outputs.name }}'"
+          echo "Sonar status: '${{ needs.sonar-scan.outputs.quality_gate_status }}'"
+          echo "Snyk status: '${{ needs.snyk-scan.outputs.snyk_status }}'"
 
-  #     - name: Send Sonar notification
-  #       if: ${{ needs.sonar-scan.outputs.quality_gate_status == 'FAILED' }}
-  #       uses: ./.github/actions/send-notification
-  #       with:
-  #         pipeline_name: ${{ github.workflow }}
-  #         repository_name: ${{ github.repository }}
-  #         failure_reason: "SonarQube Quality Gate Failed"
-  #         author: ${{ needs.get-email.outputs.name || github.actor }}
-  #         smtp_username: ${{ secrets.SMTP_USERNAME }}
-  #         smtp_password: ${{ secrets.SMTP_PASSWORD }}
-  #         mail_from: ${{ secrets.MAIL_FROM }}
-  #         mail_to: ${{ needs.get-email.outputs.email }}
-  #         slack_webhook: ${{ secrets.SLACK_INCOMING_WEBHOOK }}
-  #         sonar_host_url: ${{ secrets.SONAR_HOST_URL }}
-  #         sonar_project_key: ${{ secrets.SONAR_PROJECT_KEY }}
-  #         report_url: ${{ secrets.SONAR_HOST_URL }}/dashboard?id=${{ secrets.SONAR_PROJECT_KEY }}
+      - name: Send Sonar notification
+        if: ${{ needs.sonar-scan.outputs.quality_gate_status == 'FAILED' }}
+        uses: ./.github/actions/send-notification
+        with:
+          pipeline_name: ${{ github.workflow }}
+          repository_name: ${{ github.repository }}
+          failure_reason: "SonarQube Quality Gate Failed"
+          author: ${{ needs.get-email.outputs.name || github.actor }}
+          smtp_username: ${{ secrets.SMTP_USERNAME }}
+          smtp_password: ${{ secrets.SMTP_PASSWORD }}
+          mail_from: ${{ secrets.MAIL_FROM }}
+          mail_to: ${{ needs.get-email.outputs.email }}
+          slack_webhook: ${{ secrets.SLACK_INCOMING_WEBHOOK }}
+          sonar_host_url: ${{ secrets.SONAR_HOST_URL }}
+          sonar_project_key: ${{ secrets.SONAR_PROJECT_KEY }}
+          report_url: ${{ secrets.SONAR_HOST_URL }}/dashboard?id=${{ secrets.SONAR_PROJECT_KEY }}
 
-  #     - name: Send Snyk notification
-  #       if: ${{ needs.snyk-scan.outputs.snyk_status == 'failure' }}
-  #       uses: ./.github/actions/send-notification
-  #       with:
-  #         pipeline_name: ${{ github.workflow }}
-  #         repository_name: ${{ github.repository }}
-  #         failure_reason: "Snyk Scan Failed"
-  #         author: ${{ needs.get-email.outputs.name || github.actor }}
-  #         smtp_username: ${{ secrets.SMTP_USERNAME }}
-  #         smtp_password: ${{ secrets.SMTP_PASSWORD }}
-  #         mail_from: ${{ secrets.MAIL_FROM }}
-  #         mail_to: ${{ needs.get-email.outputs.email }}
-  #         slack_webhook: ${{ secrets.SLACK_INCOMING_WEBHOOK }}
-  #         sonar_host_url: ${{ secrets.SONAR_HOST_URL }}
-  #         sonar_project_key: ${{ secrets.SONAR_PROJECT_KEY }}
-  #         report_url: https://app.snyk.io/org/${{ secrets.SNYK_ORG_ID }}/project/${{ secrets.SNYK_PROJECT_ID }}
+      - name: Send Snyk notification
+        if: ${{ needs.snyk-scan.outputs.snyk_status == 'failure' }}
+        uses: ./.github/actions/send-notification
+        with:
+          pipeline_name: ${{ github.workflow }}
+          repository_name: ${{ github.repository }}
+          failure_reason: "Snyk Scan Failed"
+          author: ${{ needs.get-email.outputs.name || github.actor }}
+          smtp_username: ${{ secrets.SMTP_USERNAME }}
+          smtp_password: ${{ secrets.SMTP_PASSWORD }}
+          mail_from: ${{ secrets.MAIL_FROM }}
+          mail_to: ${{ needs.get-email.outputs.email }}
+          slack_webhook: ${{ secrets.SLACK_INCOMING_WEBHOOK }}
+          sonar_host_url: ${{ secrets.SONAR_HOST_URL }}
+          sonar_project_key: ${{ secrets.SONAR_PROJECT_KEY }}
+          report_url: https://app.snyk.io/org/${{ secrets.SNYK_ORG_ID }}/project/${{ secrets.SNYK_PROJECT_ID }}
 
   # image-build-scan:
   #   needs:
