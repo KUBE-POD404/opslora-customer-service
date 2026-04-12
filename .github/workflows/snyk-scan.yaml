@@ -51,11 +51,11 @@ jobs:
         continue-on-error: true
  
       - name: Setup Snyk CLI
-        if: ${{ github.ref_name == 'deploying' }}
+        # if: ${{ github.ref_name == 'deploying' }}
         uses: snyk/actions/setup@master
  
       - name: Publish project snapshot to Snyk UI
-        if: ${{ github.ref_name == 'deploying' }}
+        # if: ${{ github.ref_name == 'deploying' }}
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         run: |
@@ -65,7 +65,7 @@ jobs:
             --target-reference=${{ github.ref_name }}
 
       - name: Debug - Fetch Snyk project details
-        if: ${{ github.ref_name == 'deploying' }}
+        # if: ${{ github.ref_name == 'deploying' }}
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         run: |
