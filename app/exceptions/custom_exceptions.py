@@ -1,25 +1,26 @@
 class AppException(Exception):
-    def _init_(self, message: str, status_code: int = 400, details: dict | None = None):
+    def __init__(self, message: str, status_code: int = 400, details: dict | None = None):
         self.message = message
         self.status_code = status_code
         self.details = details
+        super().__init__(message, status_code, details)
 
 
 class NotFoundException(AppException):
-    def _init_(self, message="Resource not found"):
-        super()._init_(message, 404)
+    def __init__(self, message: str = "Resource not found", details: dict | None = None):
+        super().__init__(message, 404, details)
 
 
 class UnauthorizedException(AppException):
-    def _init_(self, message="Unauthorized"):
-        super()._init_(message, 401)
+    def __init__(self, message: str = "Unauthorized", details: dict | None = None):
+        super().__init__(message, 401, details)
 
 
 class ForbiddenException(AppException):
-    def _init_(self, message="Forbidden"):
-        super()._init_(message, 403)
+    def __init__(self, message: str = "Forbidden", details: dict | None = None):
+        super().__init__(message, 403, details)
 
 
 class ConflictException(AppException):
-    def _init_(self, message="Conflict"):
-        super()._init_(message, 409)
+    def __init__(self, message: str = "Conflict", details: dict | None = None):
+        super().__init__(message, 409, details)
