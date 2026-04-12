@@ -1,6 +1,8 @@
 import os
-from jose import jwt, JWTError
+
 from dotenv import load_dotenv
+from fastapi import HTTPException, status
+from jose import JWTError, jwt
 
 load_dotenv()
 
@@ -29,5 +31,8 @@ def decode_token(token: str) -> TokenPayload:
             permissions=payload.get("permissions", [])
         )
 
-    except JWTError:
-        raise Exception("Invalid or expired token")
+    except JWTError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token"
+        ) from exc
