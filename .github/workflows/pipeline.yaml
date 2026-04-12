@@ -61,7 +61,7 @@ jobs:
     secrets: inherit
 
   notify:
-    name: Notification for sonar and snyk
+    name: Notification for Sonar and snyk
     needs:
       - sonar-scan
       - snyk-scan
