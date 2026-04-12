@@ -53,6 +53,18 @@ jobs:
       - name: Setup Snyk CLI
         # if: ${{ github.ref_name == 'deploying' }}
         uses: snyk/actions/setup@master
+
+      - name: Debug - check Snyk token presence
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: |
+          if [ -z "$SNYK_TOKEN" ]; then
+            echo "SNYK_TOKEN is empty or not available"
+            exit 1
+          fi
+
+          echo "SNYK_TOKEN is present"
+          echo "Token length: ${#SNYK_TOKEN}"
  
       - name: Publish project snapshot to Snyk UI
         # if: ${{ github.ref_name == 'deploying' }}
