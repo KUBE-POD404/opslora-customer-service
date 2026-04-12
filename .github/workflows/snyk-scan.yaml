@@ -54,7 +54,7 @@ jobs:
         # if: ${{ github.ref_name == 'deploying' }}
         uses: snyk/actions/setup@master
 
-      - name: Debug - check Snyk token presence
+      - name: Debug - check Snyk token presence?
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         run: |
