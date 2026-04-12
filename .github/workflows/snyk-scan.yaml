@@ -61,8 +61,25 @@ jobs:
         run: |
           snyk monitor \
             --file=requirements.txt \
-            --project-name=${{ github.event.repository.name }} \
+            --project-name=${{ github.repository }} \
             --target-reference=${{ github.ref_name }}
+
+      - name: Debug - Fetch Snyk project details
+        if: ${{ github.ref_name == 'deploying' }}
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: |
+          echo "Fetching Snyk projects..."
+
+          curl -s https://api.snyk.io/v1/org/${{ secrets.SNYK_ORG_ID }}/projects \
+            -H "Authorization: token $SNYK_TOKEN" \
+            -H "Content-Type: application/json" > projects.json
+
+          echo "==== RAW PROJECT LIST ===="
+          cat projects.json
+
+          echo "==== FILTERED PROJECTS (by repo name) ===="
+          cat projects.json | jq '.projects[] | {id: .id, name: .name, branch: .branch}'
  
       - name: Show Snyk outcome
         run: |
