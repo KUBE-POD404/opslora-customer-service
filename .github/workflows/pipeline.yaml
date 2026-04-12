@@ -111,7 +111,7 @@ jobs:
           slack_webhook: ${{ secrets.SLACK_INCOMING_WEBHOOK }}
           sonar_host_url: ${{ secrets.SONAR_HOST_URL }}
           sonar_project_key: ${{ secrets.SONAR_PROJECT_KEY }}
-          report_url: https://app.snyk.io/org/${{ secrets.SNYK_ORG_ID }}/project/${{ secrets.SNYK_PROJECT_ID }}
+          report_url: https://app.snyk.io/org/${{ secrets.SNYK_ORG }}/project/${{ secrets.SNYK_PROJECT_ID }}
 
   # image-build-scan:
   #   needs:
