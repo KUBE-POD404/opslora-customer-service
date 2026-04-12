@@ -16,9 +16,19 @@ on:
         description: "Notification summary"
         value: ${{ jobs.code-quality.outputs.notify_summary }}
 
+permissions:
+  contents: read
+
 jobs:
   code-quality:
+    name: SonarQube code quality
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    defaults:
+      run:
+        shell: bash
+
     outputs:
       quality_gate_status: ${{ steps.set_outputs.outputs.quality_gate_status }}
       notify_tool: ${{ steps.set_outputs.outputs.notify_tool }}
@@ -28,6 +38,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Cache Sonar packages
         uses: actions/cache@v4
@@ -37,10 +49,29 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-sonar-cache
 
+      - name: Validate Sonar configuration
+        env:
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        run: |
+          if [ -z "$SONAR_HOST_URL" ]; then
+            echo "SONAR_HOST_URL is empty"
+            exit 1
+          fi
+
+          case "$SONAR_HOST_URL" in
+            http://*|https://*)
+              echo "SONAR_HOST_URL format looks valid"
+              ;;
+            *)
+              echo "SONAR_HOST_URL must start with http:// or https://"
+              exit 1
+              ;;
+          esac
+
       - name: Scan using SonarQube
         uses: SonarSource/sonarqube-scan-action@v7.1.0
         with:
-          args: >
+          args: >-
             -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -56,9 +87,12 @@ jobs:
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
         continue-on-error: true
 
+      - name: Show quality gate outcome
+        run: |
+          echo "Quality gate status: ${{ steps.qg.outputs.quality-gate-status }}"
+
       - name: Set normalized outputs
         id: set_outputs
-        shell: bash
         run: |
           echo "quality_gate_status=${{ steps.qg.outputs.quality-gate-status }}" >> "$GITHUB_OUTPUT"
           echo "notify_tool=sonar" >> "$GITHUB_OUTPUT"
@@ -70,7 +104,7 @@ jobs:
             echo "notify_title=SonarQube Passed" >> "$GITHUB_OUTPUT"
             echo "notify_summary=Quality gate passed successfully." >> "$GITHUB_OUTPUT"
           fi
-        
+
       - name: Stop pipeline - sonarqube gate failed
         if: ${{ steps.qg.outputs.quality-gate-status == 'FAILED' }}
         run: |
