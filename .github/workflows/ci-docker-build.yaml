@@ -31,13 +31,18 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+        
+      - name: Debug Docker target
+        run: |
+          echo "Docker username: '${{ secrets.DOCKERHUB_USERNAME }}'"
+          echo "Target repo: '${{ secrets.TEST_REPO }}'"
+          echo "Final tag: '${{ secrets.TEST_REPO }}:${{ steps.meta.outputs.tag }}'"
 
       - name: Build and push image
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
-          tags: |
-            ${{ secrets.TEST_REPO }}:${{ steps.meta.outputs.tag }}
+          tags: ${{ secrets.TEST_REPO }}:${{ steps.meta.outputs.tag }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
