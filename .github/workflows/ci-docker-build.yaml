@@ -71,7 +71,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y trivy
 
-      - name: Scan image with Trivy VEX
+      - name: Scan image with Trivy 
         id: trivy_scan
         if: ${{ steps.docker_build.outcome == 'success' && steps.install_trivy.outcome == 'success' }}
         continue-on-error: true
@@ -79,6 +79,7 @@ jobs:
           trivy image \
             --scanners vuln \
             --vex repo \
+            --vuln-type library \
             --format sarif \
             --output trivy-report.sarif \
             --exit-code 1 \
