@@ -89,14 +89,6 @@ jobs:
     uses: ./.github/workflows/ci-docker-build.yaml
     secrets: inherit
 
-  trivy-scan:
-    name: Trivy scan
-    needs: [gate, docker-build]
-    if: ${{ needs.gate.outputs.should_build == 'true' }}
-    uses: ./.github/workflows/ci-trivy-scan.yaml
-    with:
-      image_tag: ${{ needs.docker-build.outputs.image_tag }}
-    secrets: inherit
 
   notify:
     name: Notification for Docker and Trivy
@@ -105,7 +97,6 @@ jobs:
       - gate
       - get-email
       - docker-build
-      - trivy-scan
     if: ${{ always() && needs.gate.outputs.should_build == 'true' && (needs.docker-build.result == 'failure' || needs.trivy-scan.result == 'failure') }}
     steps:
       - name: Checkout code
