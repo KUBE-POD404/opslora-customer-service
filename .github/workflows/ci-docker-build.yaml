@@ -47,12 +47,12 @@
         - name: Scan image
           uses: aquasecurity/trivy-action@0.20.0
           with:
-            image-ref: ${{ secrets.TEST_REPO }}:${{ inputs.image_tag }}
+            image-ref: ${{ secrets.TEST_REPO }}:${{ steps.meta.outputs.tag }}
             format: table
             exit-code: 1
             severity: CRITICAL,HIGH
 
         - name: Push image
           run: |
-            docker push ${{ secrets.TEST_REPO }}:${{ inputs.image_tag }}
+            docker push ${{ secrets.TEST_REPO }}:${{ steps.meta.outputs.tag }}
 
