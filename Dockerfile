@@ -21,8 +21,8 @@ WORKDIR /app
 ENV PATH="/app/venv/bin:$PATH"
 ENV PYTHONUNBUFFERED=1
 
-COPY --from=builder --chown=10001:10001 /app/venv /app/venv
-COPY --chown=10001:10001 app/ ./app/
+COPY --from=builder --chown=10001:10001 --chmod=0555 /app/venv /app/venv
+COPY --chown=10001:10001 --chmod=0555 app/ ./app/
 
 USER 10001
 
