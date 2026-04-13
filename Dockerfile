@@ -1,4 +1,4 @@
-FROM dhi.io/python:3.13.13 AS builder
+FROM dhi.io/python:3.13-dev AS builder
 
 WORKDIR /app
 
