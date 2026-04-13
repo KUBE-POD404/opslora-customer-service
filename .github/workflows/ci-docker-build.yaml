@@ -43,7 +43,7 @@ jobs:
           docker build -t ${{ secrets.TEST_REPO }}:${{ steps.meta.outputs.tag }} .
 
       - name: Scan image
-        uses: aquasecurity/trivy-action@0.20.0
+        uses: aquasecurity/trivy-action@v0.35.0
         with:
           image-ref: ${{ secrets.TEST_REPO }}:${{ steps.meta.outputs.tag }}
           format: table
