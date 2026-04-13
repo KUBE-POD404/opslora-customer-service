@@ -12,7 +12,8 @@ concurrency:
 
 permissions:
   contents: read
-  pull-requests: read
+  actions: read
+  security-events: write
 
 jobs:
   get-email:
@@ -86,6 +87,10 @@ jobs:
     name: Docker build
     needs: gate
     if: ${{ needs.gate.outputs.should_build == 'true' }}
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
     uses: ./.github/workflows/ci-docker-build.yaml
     secrets: inherit
 
@@ -114,7 +119,7 @@ jobs:
           with:
             pipeline_name: ${{ github.workflow }}
             repository_name: ${{ github.repository }}
-            failure_reason: ${{ needs.docker-build.outputs.failure_stage == 'trivy' && 'Trivy Scan Failed' || 'Docker Build Failed' }}
+            failure_reason: ${{ needs.docker-build.outputs.failure_stage == 'trivy' && 'Trivy Scan Failed' || needs.docker-build.outputs.failure_stage == 'trivy-install' && 'Trivy Install Failed' || 'Docker Build Failed' }}
             author: ${{ needs.get-email.outputs.name || github.actor }}
             smtp_username: ${{ secrets.SMTP_USERNAME }}
             smtp_password: ${{ secrets.SMTP_PASSWORD }}
