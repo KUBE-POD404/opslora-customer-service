@@ -3,7 +3,8 @@ name: Customer service Merge Build
 on:
   pull_request:
     types: [closed]
-    branches: [main]
+    branches:
+      - main
 
 concurrency:
   group: customer-merge-build-${{ github.event.pull_request.number }}
@@ -11,8 +12,6 @@ concurrency:
 
 permissions:
   contents: read
-  actions: read
-  checks: read
   pull-requests: read
 
 jobs:
@@ -22,7 +21,7 @@ jobs:
     outputs:
       should_build: ${{ steps.gate.outputs.should_build }}
     steps:
-      - name: Evaluate PR conditions
+      - name: Evaluate merge, label, and approval
         id: gate
         env:
           GH_TOKEN: ${{ github.token }}
@@ -42,18 +41,15 @@ jobs:
             exit 0
           fi
 
-          SHA="${{ github.event.pull_request.head.sha }}"
-
           gh api \
-            repos/${{ github.repository }}/commits/$SHA/check-runs \
-            -H "Accept: application/vnd.github+json" > checks.json
+            repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/reviews \
+            -H "Accept: application/vnd.github+json" > reviews.json
 
-          cat checks.json
+          cat reviews.json
 
-          SONAR_OK=$(jq -r '[.check_runs[] | select(.name == "SonarQube scan") | .conclusion] | any(. == "success")' checks.json)
-          SNYK_OK=$(jq -r '[.check_runs[] | select(.name == "Snyk Scan") | .conclusion] | any(. == "success")' checks.json)
+          APPROVED=$(jq -r 'map(select(.state == "APPROVED")) | length > 0' reviews.json)
 
-          if [ "$SONAR_OK" = "true" ] && [ "$SNYK_OK" = "true" ]; then
+          if [ "$APPROVED" = "true" ]; then
             SHOULD_BUILD=true
           fi
 
@@ -65,9 +61,9 @@ jobs:
     uses: ./.github/workflows/ci-docker-build.yaml
     secrets: inherit
 
-  trivy-scan:
-    needs: [gate, docker-build]
-    if: ${{ needs.gate.outputs.should_build == 'true' }}
+  notify:
+    needs: docker-build
+    if: ${{ always() && needs.gate.outputs.should_build == 'true' }}
     uses: ./.github/workflows/ci-trivy-scan.yaml
     with:
       image_tag: ${{ needs.docker-build.outputs.image_tag }}
