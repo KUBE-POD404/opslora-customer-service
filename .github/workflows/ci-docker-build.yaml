@@ -48,14 +48,12 @@ jobs:
           echo "Target repo: '${{ secrets.TEST_REPO }}'"
           echo "Final tag: '${{ secrets.TEST_REPO }}:${{ steps.meta.outputs.tag }}'"
 
-      - name: Build image locally with provenance and SBOM
+      - name: Build image locally
         id: docker_build
         continue-on-error: true
         run: |
           docker buildx build \
             --load \
-            --provenance=mode=max \
-            --sbom=true \
             -t ${{ secrets.TEST_REPO }}:${{ steps.meta.outputs.tag }} \
             .
 
