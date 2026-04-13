@@ -11,8 +11,6 @@ COPY requirements.txt .
 RUN --mount=type=cache,target=/root/.cache/pip \
     /app/venv/bin/pip install -r requirements.txt
 
-RUN useradd -u 10001 -m appuser
-
 
 FROM dhi.io/python:3.13
 
@@ -21,8 +19,8 @@ WORKDIR /app
 ENV PATH="/app/venv/bin:$PATH"
 ENV PYTHONUNBUFFERED=1
 
-COPY --from=builder --chown=10001:10001 --chmod=0555 /app/venv /app/venv
-COPY --chown=10001:10001 --chmod=0555 app/ ./app/
+COPY --from=builder --chown=0:0 --chmod=0555 /app/venv /app/venv
+COPY --chown=0:0 --chmod=0555 app/ ./app/
 
 USER 10001
 
