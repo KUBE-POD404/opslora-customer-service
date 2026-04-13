@@ -131,11 +131,3 @@ jobs:
           sonar_project_key: ${{ secrets.SONAR_PROJECT_KEY }}
           report_url: https://app.snyk.io/org/${{ secrets.SNYK_ORG }}/project/${{ secrets.SNYK_PROJECT_ID }}
 
-  # image-build-scan:
-  #   needs:
-  #     - sonar-scan
-  #     - snyk-scan
-  #     - notify
-  #   if: ${{ needs.sonar-scan.outputs.quality_gate_status == 'PASSED' && needs.snyk-scan.outputs.snyk_status == 'success' }}
-  #   uses: ./.github/workflows/docker-scan.yaml
-  #   secrets: inheritv
