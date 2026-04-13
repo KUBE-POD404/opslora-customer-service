@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   get-email:
-    name: Get latest commit author
+    name: Get commit author
     runs-on: ubuntu-latest
     outputs:
       email: ${{ steps.author.outputs.email }}
