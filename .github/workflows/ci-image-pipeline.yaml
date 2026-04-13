@@ -1,0 +1,74 @@
+name: Customer service Merge Build
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+concurrency:
+  group: customer-merge-build-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: read
+  checks: read
+  pull-requests: read
+
+jobs:
+  gate:
+    name: Validate merge conditions
+    runs-on: ubuntu-latest
+    outputs:
+      should_build: ${{ steps.gate.outputs.should_build }}
+    steps:
+      - name: Evaluate PR conditions
+        id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          SHOULD_BUILD=false
+
+          if [ "${{ github.event.pull_request.merged }}" != "true" ]; then
+            echo "PR was not merged"
+            echo "should_build=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if ! echo '${{ toJson(github.event.pull_request.labels.*.name) }}' | grep -q '"build"'; then
+            echo "PR does not have build label"
+            echo "should_build=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          SHA="${{ github.event.pull_request.head.sha }}"
+
+          gh api \
+            repos/${{ github.repository }}/commits/$SHA/check-runs \
+            -H "Accept: application/vnd.github+json" > checks.json
+
+          cat checks.json
+
+          SONAR_OK=$(jq -r '[.check_runs[] | select(.name == "SonarQube scan") | .conclusion] | any(. == "success")' checks.json)
+          SNYK_OK=$(jq -r '[.check_runs[] | select(.name == "Snyk Scan") | .conclusion] | any(. == "success")' checks.json)
+
+          if [ "$SONAR_OK" = "true" ] && [ "$SNYK_OK" = "true" ]; then
+            SHOULD_BUILD=true
+          fi
+
+          echo "should_build=$SHOULD_BUILD" >> "$GITHUB_OUTPUT"
+
+  docker-build:
+    needs: gate
+    if: ${{ needs.gate.outputs.should_build == 'true' }}
+    uses: ./.github/workflows/ci-docker-build.yaml
+    secrets: inherit
+
+  trivy-scan:
+    needs: [gate, docker-build]
+    if: ${{ needs.gate.outputs.should_build == 'true' }}
+    uses: ./.github/workflows/ci-trivy-scan.yaml
+    with:
+      image_tag: ${{ needs.docker-build.outputs.image_tag }}
+    secrets: inherit
