@@ -1,4 +1,4 @@
-name: Customer service Merge Build
+name: Customer service Image workflow pipeline
 
 on:
   pull_request:
@@ -15,6 +15,35 @@ permissions:
   pull-requests: read
 
 jobs:
+  get-email:
+    name: Get latest commit author
+    runs-on: ubuntu-latest
+    outputs:
+      email: ${{ steps.author.outputs.email }}
+      name: ${{ steps.author.outputs.name }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get latest commit author
+        id: author
+        shell: bash
+        run: |
+          SHA="${{ github.event.pull_request.head.sha }}"
+
+          git log -1 "$SHA" || echo "Commit not found!"
+
+          EMAIL=$(git show -s --format='%ae' "$SHA")
+          NAME=$(git show -s --format='%an' "$SHA")
+
+          echo "email=$EMAIL" >> "$GITHUB_OUTPUT"
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+
+          echo "Resolved email: $EMAIL"
+          echo "Resolved name: $NAME"
+
   gate:
     name: Validate merge conditions
     runs-on: ubuntu-latest
@@ -45,7 +74,157 @@ jobs:
             repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/reviews \
             -H "Accept: application/vnd.github+json" > reviews.json
 
-          cat reviews.json
+          APPROVED=$(jq -r 'map(select(.state == "APPROVED")) | length > 0' reviews.json)
+
+          if [ "$APPROVED" = "true" ]; then
+            SHOULD_BUILD=true
+          fi
+
+          echo "should_build=$SHOULD_BUILD" >> "$GITHUB_OUTPUT"
+
+  docker-build:
+    name: Docker build
+    needs: gate
+    if: ${{ needs.gate.outputs.should_build == 'true' }}
+    uses: ./.github/workflows/ci-docker-build.yaml
+    secrets: inherit
+
+  trivy-scan:
+    name: Trivy scan
+    needs: [gate, docker-build]
+    if: ${{ needs.gate.outputs.should_build == 'true' }}
+    uses: ./.github/workflows/ci-trivy-scan.yaml
+    with:
+      image_tag: ${{ needs.docker-build.outputs.image_tag }}
+    secrets: inherit
+
+  notify:
+    name: Notification for Docker and Trivy
+    runs-on: ubuntu-latest
+    needs:
+      - gate
+      - get-email
+      - docker-build
+      - trivy-scan
+    if: ${{ always() && needs.gate.outputs.should_build == 'true' && (needs.docker-build.result == 'failure' || needs.trivy-scan.result == 'failure') }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Debug notification values
+        run: |
+          echo "Author email: '${{ needs.get-email.outputs.email }}'"
+          echo "Author name: '${{ needs.get-email.outputs.name }}'"
+          echo "Docker build result: '${{ needs.docker-build.result }}'"
+          echo "Trivy scan result: '${{ needs.trivy-scan.result }}'"
+
+      - name: Send Docker build notification
+        if: ${{ needs.docker-build.result == 'failure' }}
+        uses: ./.github/actions/send-notification
+        with:
+          pipeline_name: ${{ github.workflow }}
+          repository_name: ${{ github.repository }}
+          failure_reason: "Docker Build Failed"
+          author: ${{ needs.get-email.outputs.name || github.actor }}
+          smtp_username: ${{ secrets.SMTP_USERNAME }}
+          smtp_password: ${{ secrets.SMTP_PASSWORD }}
+          mail_from: ${{ secrets.MAIL_FROM }}
+          mail_to: ${{ needs.get-email.outputs.email || secrets.MAIL_TO }}
+          slack_webhook: ${{ secrets.SLACK_INCOMING_WEBHOOK }}
+          sonar_host_url: ${{ secrets.SONAR_HOST_URL }}
+          sonar_project_key: ${{ secrets.SONAR_PROJECT_KEY }}
+          report_url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+      - name: Send Trivy notification
+        if: ${{ needs.trivy-scan.result == 'failure' }}
+        uses: ./.github/actions/send-notification
+        with:
+          pipeline_name: ${{ github.workflow }}
+          repository_name: ${{ github.repository }}
+          failure_reason: "Trivy Scan Failed"
+          author: ${{ needs.get-email.outputs.name || github.actor }}
+          smtp_username: ${{ secrets.SMTP_USERNAME }}
+          smtp_password: ${{ secrets.SMTP_PASSWORD }}
+          mail_from: ${{ secrets.MAIL_FROM }}
+          mail_to: ${{ needs.get-email.outputs.email || secrets.MAIL_TO }}
+          slack_webhook: ${{ secrets.SLACK_INCOMING_WEBHOOK }}
+          sonar_host_url: ${{ secrets.SONAR_HOST_URL }}
+          sonar_project_key: ${{ secrets.SONAR_PROJECT_KEY }}
+          report_url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}name: Customer service Merge Build
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+
+concurrency:
+  group: customer-merge-build-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  get-email:
+    name: Get latest commit author
+    runs-on: ubuntu-latest
+    outputs:
+      email: ${{ steps.author.outputs.email }}
+      name: ${{ steps.author.outputs.name }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get latest commit author
+        id: author
+        shell: bash
+        run: |
+          SHA="${{ github.event.pull_request.head.sha }}"
+
+          git log -1 "$SHA" || echo "Commit not found!"
+
+          EMAIL=$(git show -s --format='%ae' "$SHA")
+          NAME=$(git show -s --format='%an' "$SHA")
+
+          echo "email=$EMAIL" >> "$GITHUB_OUTPUT"
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+
+          echo "Resolved email: $EMAIL"
+          echo "Resolved name: $NAME"
+
+  gate:
+    name: Validate merge conditions
+    runs-on: ubuntu-latest
+    outputs:
+      should_build: ${{ steps.gate.outputs.should_build }}
+    steps:
+      - name: Evaluate merge, label, and approval
+        id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          SHOULD_BUILD=false
+
+          if [ "${{ github.event.pull_request.merged }}" != "true" ]; then
+            echo "PR was not merged"
+            echo "should_build=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if ! echo '${{ toJson(github.event.pull_request.labels.*.name) }}' | grep -q '"build"'; then
+            echo "PR does not have build label"
+            echo "should_build=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          gh api \
+            repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/reviews \
+            -H "Accept: application/vnd.github+json" > reviews.json
 
           APPROVED=$(jq -r 'map(select(.state == "APPROVED")) | length > 0' reviews.json)
 
@@ -56,15 +235,71 @@ jobs:
           echo "should_build=$SHOULD_BUILD" >> "$GITHUB_OUTPUT"
 
   docker-build:
+    name: Docker build
     needs: gate
     if: ${{ needs.gate.outputs.should_build == 'true' }}
     uses: ./.github/workflows/ci-docker-build.yaml
     secrets: inherit
 
-  notify:
-    needs: docker-build
-    if: ${{ always() && needs.gate.outputs.should_build == 'true' }}
+  trivy-scan:
+    name: Trivy scan
+    needs: [gate, docker-build]
+    if: ${{ needs.gate.outputs.should_build == 'true' }}
     uses: ./.github/workflows/ci-trivy-scan.yaml
     with:
       image_tag: ${{ needs.docker-build.outputs.image_tag }}
     secrets: inherit
+
+  notify:
+    name: Notification for Docker and Trivy
+    runs-on: ubuntu-latest
+    needs:
+      - gate
+      - get-email
+      - docker-build
+      - trivy-scan
+    if: ${{ always() && needs.gate.outputs.should_build == 'true' && (needs.docker-build.result == 'failure' || needs.trivy-scan.result == 'failure') }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Debug notification values
+        run: |
+          echo "Author email: '${{ needs.get-email.outputs.email }}'"
+          echo "Author name: '${{ needs.get-email.outputs.name }}'"
+          echo "Docker build result: '${{ needs.docker-build.result }}'"
+          echo "Trivy scan result: '${{ needs.trivy-scan.result }}'"
+
+      - name: Send Docker build notification
+        if: ${{ needs.docker-build.result == 'failure' }}
+        uses: ./.github/actions/send-notification
+        with:
+          pipeline_name: ${{ github.workflow }}
+          repository_name: ${{ github.repository }}
+          failure_reason: "Docker Build Failed"
+          author: ${{ needs.get-email.outputs.name || github.actor }}
+          smtp_username: ${{ secrets.SMTP_USERNAME }}
+          smtp_password: ${{ secrets.SMTP_PASSWORD }}
+          mail_from: ${{ secrets.MAIL_FROM }}
+          mail_to: ${{ needs.get-email.outputs.email || secrets.MAIL_TO }}
+          slack_webhook: ${{ secrets.SLACK_INCOMING_WEBHOOK }}
+          sonar_host_url: ${{ secrets.SONAR_HOST_URL }}
+          sonar_project_key: ${{ secrets.SONAR_PROJECT_KEY }}
+          report_url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+      - name: Send Trivy notification
+        if: ${{ needs.trivy-scan.result == 'failure' }}
+        uses: ./.github/actions/send-notification
+        with:
+          pipeline_name: ${{ github.workflow }}
+          repository_name: ${{ github.repository }}
+          failure_reason: "Trivy Scan Failed"
+          author: ${{ needs.get-email.outputs.name || github.actor }}
+          smtp_username: ${{ secrets.SMTP_USERNAME }}
+          smtp_password: ${{ secrets.SMTP_PASSWORD }}
+          mail_from: ${{ secrets.MAIL_FROM }}
+          mail_to: ${{ needs.get-email.outputs.email || secrets.MAIL_TO }}
+          slack_webhook: ${{ secrets.SLACK_INCOMING_WEBHOOK }}
+          sonar_host_url: ${{ secrets.SONAR_HOST_URL }}
+          sonar_project_key: ${{ secrets.SONAR_PROJECT_KEY }}
+          report_url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
