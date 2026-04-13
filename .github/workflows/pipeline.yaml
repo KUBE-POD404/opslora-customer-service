@@ -60,13 +60,31 @@ jobs:
     uses: ./.github/workflows/snyk-scan.yaml
     secrets: inherit
 
+  docker-build:
+    needs: [sonar-scan, snyk-scan]
+    if: >
+      github.event.action == 'closed' &&
+      github.event.pull_request.merged == true &&
+      contains(github.event.pull_request.labels.*.name, 'build') &&
+      needs.snyk-scan.outputs.snyk_status == 'success'
+    uses: ./.github/workflows/ci-docker-build.yaml
+    secrets: inherit
+
+  trivy-scan:
+    needs: docker-build
+    uses: ./.github/workflows/ci-trivy-scan.yaml
+    with:
+      image_tag: ${{ needs.docker-build.outputs.image_tag }}
+    secrets: inherit
+
   notify:
     name: Notification for Sonar and snyk
     needs:
       - sonar-scan
       - snyk-scan
       - get-email
-    if: ${{ always() && (needs.sonar-scan.outputs.quality_gate_status == 'FAILED' || needs.snyk-scan.outputs.snyk_status == 'failure') }}
+      - trivy-scan
+    if: ${{ always() && (needs.sonar-scan.outputs.quality_gate_status == 'FAILED' || needs.snyk-scan.outputs.snyk_status == 'failure' || needs.trivy-scan.result == 'failure') }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
