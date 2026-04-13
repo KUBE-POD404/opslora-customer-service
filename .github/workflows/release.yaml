@@ -29,7 +29,7 @@ jobs:
           SHORT_SHA=${SHA::7}
           echo "sha=$SHORT_SHA" >> $GITHUB_OUTPUT
 
-      - name: Pull image from TEST repo
+      - name: Pull image from TEST repos
         run: |
           docker pull ${{ secrets.TEST_REPO }}:${{ steps.sha.outputs.sha }}
 
