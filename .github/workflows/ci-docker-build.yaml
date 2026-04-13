@@ -38,11 +38,19 @@ jobs:
           echo "Target repo: '${{ secrets.TEST_REPO }}'"
           echo "Final tag: '${{ secrets.TEST_REPO }}:${{ steps.meta.outputs.tag }}'"
 
-      - name: Build and push image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: true
-          tags: ${{ secrets.TEST_REPO }}:${{ steps.meta.outputs.tag }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      # - name: Build and push image
+      #   uses: docker/build-push-action@v5
+      #   with:
+      #     context: .
+      #     push: true
+      #     tags: ${{ secrets.TEST_REPO }}:${{ steps.meta.outputs.tag }}
+      #     cache-from: type=gha
+      #     cache-to: type=gha,mode=max
+
+      - name: Build image locally
+        run: |
+          docker build -t ${{ secrets.TEST_REPO }}:${{ steps.meta.outputs.tag }} .
+
+      - name: Push image manually
+        run: |
+          docker push ${{ secrets.TEST_REPO }}:${{ steps.meta.outputs.tag }}
