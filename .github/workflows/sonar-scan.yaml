@@ -21,7 +21,7 @@ permissions:
 
 jobs:
   code-quality:
-    name: SonarQube code quality
+    name: SonarQube codes quality
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
