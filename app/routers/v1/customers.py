@@ -55,10 +55,10 @@ def create_customer_api(
 
 @router.get("/", response_model=list[CustomerResponse])
 def list_customers(
-    page: Annotated[int, Query(ge=1)] = 1,
-    limit: Annotated[int, Query(ge=1, le=100)] = 15,
     db: DbSession,
     current_user: CurrentReadUser,
+    page: Annotated[int, Query(ge=1)] = 1,
+    limit: Annotated[int, Query(ge=1, le=100)] = 15
 ):
     logger.info("List customers request", extra={"page": page, "limit": limit})
     offset = (page - 1) * limit
