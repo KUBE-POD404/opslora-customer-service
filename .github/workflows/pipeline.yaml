@@ -95,6 +95,7 @@ jobs:
           slack_webhook: ${{ secrets.SLACK_INCOMING_WEBHOOK }}
           sonar_host_url: ${{ secrets.SONAR_HOST_URL }}
           sonar_project_key: ${{ secrets.SONAR_PROJECT_KEY }}
+          workflow_url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           report_url: ${{ secrets.SONAR_HOST_URL }}/dashboard?id=${{ secrets.SONAR_PROJECT_KEY }}
 
       - name: Send Snyk notification
@@ -111,6 +112,7 @@ jobs:
           mail_to: ${{ needs.get-email.outputs.email }}
           slack_webhook: ${{ secrets.SLACK_INCOMING_WEBHOOK }}
           sonar_host_url: ${{ secrets.SONAR_HOST_URL }}
+          workflow_url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           sonar_project_key: ${{ secrets.SONAR_PROJECT_KEY }}
           report_url: https://app.snyk.io/org/${{ secrets.SNYK_ORG }}/project/${{ secrets.SNYK_PROJECT_ID }}
 
