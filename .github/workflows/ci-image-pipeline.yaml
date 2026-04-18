@@ -87,7 +87,7 @@ jobs:
       - gate
       - docker-build
     if: ${{ needs.gate.outputs.should_build == 'true' && needs.docker-build.result == 'success' }}
-    uses: ./.github/workflows/update-helm-values.yaml
+    uses: ./.github/workflows/update-helm-test.yaml
     with:
       helm_repo: KUBE-POD404/opslora-helm-charts
       helm_branch: refactor/opslora-helm
