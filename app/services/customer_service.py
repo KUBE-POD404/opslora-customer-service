@@ -19,6 +19,17 @@ def create_customer_service(
 
     logger.info("Creating customer", extra={"email": email})
 
+    existing = (
+        db.query(Customer)
+        .filter(
+            Customer.organization_id == organization_id,
+            Customer.email == email,
+        )
+        .first()
+    )
+    if existing:
+        raise ConflictException("Customer email already exists in this organization")
+
     customer = Customer(
         organization_id=organization_id,
         name=name,
@@ -37,7 +48,7 @@ def create_customer_service(
     except IntegrityError:
         db.rollback()
         logger.warning("Customer email conflict", extra={"email": email})
-        raise ConflictException("Customer email already exists")
+        raise ConflictException("Customer email already exists in this organization")
 
 
 def get_customer(db: Session, customer_id: int, organization_id: int) -> Customer:
@@ -88,6 +99,18 @@ def update_customer(
     logger.info("Updating customer", extra={"customer_id": customer_id})
 
     customer = get_customer(db, customer_id, organization_id)
+
+    existing = (
+        db.query(Customer)
+        .filter(
+            Customer.organization_id == organization_id,
+            Customer.email == email,
+            Customer.id != customer_id,
+        )
+        .first()
+    )
+    if existing:
+        raise ConflictException("Customer email already exists in this organization")
 
     customer.name = name
     customer.email = email
