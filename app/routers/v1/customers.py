@@ -27,12 +27,6 @@ CurrentUpdateUser = Annotated[object, Depends(require_permission("customer.updat
 AuthenticatedUser = Annotated[object, Depends(get_current_user)]
 
 
-@router.get("/health")
-def health():
-    logger.info("Health check called")
-    return {"status": "ok"}
-
-
 @router.post(
     "/create-customer",
     response_model=CustomerResponse,

@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.routers.v1 import customers
+from app.routers.v1 import customers, health
 
 from app.core.logging_config import setup_logging
 from app.core.middleware import RequestContextMiddleware
@@ -43,4 +43,5 @@ app.add_exception_handler(RequestValidationError, validation_exception_handler)
 app.add_exception_handler(Exception, generic_exception_handler)
 
 
+app.include_router(health.router, prefix="/api/v1")
 app.include_router(customers.router, prefix="/api/v1")
