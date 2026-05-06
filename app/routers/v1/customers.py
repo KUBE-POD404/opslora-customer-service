@@ -40,8 +40,7 @@ def create_customer_api(
     logger.info("Create customer request received", extra={"email": data.email})
     return create_customer_service(
         db=db,
-        name=data.name,
-        email=data.email,
+        payload=data,
         organization_id=current_user.org_id,
         created_by_user_id=current_user.user_id,
     )
@@ -107,6 +106,5 @@ def update_customer_api(
         db=db,
         customer_id=customer_id,
         organization_id=current_user.org_id,
-        name=payload.name,
-        email=payload.email,
+        payload=payload,
     )

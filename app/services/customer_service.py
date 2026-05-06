@@ -5,25 +5,25 @@ from sqlalchemy.orm import Session
 
 from app.models.customer import Customer
 from app.exceptions.custom_exceptions import NotFoundException, ConflictException
+from app.schemas import CustomerCreate, CustomerUpdate
 
 logger = logging.getLogger(__name__)
 
 
 def create_customer_service(
     db: Session,
-    name: str,
-    email: str,
+    payload: CustomerCreate,
     organization_id: int,
     created_by_user_id: int
 ) -> Customer:
 
-    logger.info("Creating customer", extra={"email": email})
+    logger.info("Creating customer", extra={"email": payload.email})
 
     existing = (
         db.query(Customer)
         .filter(
             Customer.organization_id == organization_id,
-            Customer.email == email,
+            Customer.email == payload.email,
         )
         .first()
     )
@@ -32,10 +32,10 @@ def create_customer_service(
 
     customer = Customer(
         organization_id=organization_id,
-        name=name,
-        email=email,
+        **payload.model_dump(),
         created_by_user_id=created_by_user_id,
         created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
     )
 
     db.add(customer)
@@ -47,7 +47,7 @@ def create_customer_service(
         return customer
     except IntegrityError:
         db.rollback()
-        logger.warning("Customer email conflict", extra={"email": email})
+        logger.warning("Customer email conflict", extra={"email": payload.email})
         raise ConflictException("Customer email already exists in this organization")
 
 
@@ -93,8 +93,7 @@ def update_customer(
     db: Session,
     customer_id: int,
     organization_id: int,
-    name: str,
-    email: str
+    payload: CustomerUpdate,
 ):
     logger.info("Updating customer", extra={"customer_id": customer_id})
 
@@ -104,7 +103,7 @@ def update_customer(
         db.query(Customer)
         .filter(
             Customer.organization_id == organization_id,
-            Customer.email == email,
+            Customer.email == payload.email,
             Customer.id != customer_id,
         )
         .first()
@@ -112,8 +111,9 @@ def update_customer(
     if existing:
         raise ConflictException("Customer email already exists in this organization")
 
-    customer.name = name
-    customer.email = email
+    for field, value in payload.model_dump().items():
+        setattr(customer, field, value)
+    customer.updated_at = datetime.now(timezone.utc)
 
     try:
         db.commit()
@@ -122,7 +122,7 @@ def update_customer(
         return customer
     except IntegrityError:
         db.rollback()
-        logger.warning("Email conflict on update", extra={"email": email})
+        logger.warning("Email conflict on update", extra={"email": payload.email})
         raise ConflictException("Email already exists")
 
 

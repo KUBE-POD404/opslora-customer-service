@@ -41,13 +41,27 @@ def test_customer_api_crud_and_exists_contract():
 
         create_response = client.post(
             "/api/v1/customers/create-customer",
-            json={"name": "Acme Buyer", "email": "buyer@example.com"},
+            json={
+                "name": "Acme Buyer",
+                "display_name": "Acme",
+                "email": "buyer@example.com",
+                "phone": "+91-9876543210",
+                "customer_type": "BUSINESS",
+                "gstin": "29ABCDE1234F1Z5",
+                "place_of_supply": "Karnataka",
+                "billing_city": "Bengaluru",
+                "billing_country": "India",
+                "portal_access_enabled": True,
+            },
         )
 
         assert create_response.status_code == 201
         created = create_response.json()
         assert created["name"] == "Acme Buyer"
         assert created["email"] == "buyer@example.com"
+        assert created["display_name"] == "Acme"
+        assert created["gstin"] == "29ABCDE1234F1Z5"
+        assert created["portal_access_enabled"] is True
 
         customer_id = created["id"]
 
@@ -61,11 +75,24 @@ def test_customer_api_crud_and_exists_contract():
 
         update_response = client.put(
             f"/api/v1/customers/{customer_id}",
-            json={"name": "Acme Updated", "email": "updated@example.com"},
+            json={
+                "name": "Acme Updated",
+                "email": "updated@example.com",
+                "phone": "+91-9999999999",
+                "customer_type": "BUSINESS",
+                "status": "ACTIVE",
+                "shipping_same_as_billing": False,
+                "shipping_city": "Mysuru",
+                "shipping_country": "India",
+                "portal_access_enabled": False,
+            },
         )
         assert update_response.status_code == 200
         assert update_response.json()["name"] == "Acme Updated"
         assert update_response.json()["email"] == "updated@example.com"
+        assert update_response.json()["phone"] == "+91-9999999999"
+        assert update_response.json()["shipping_same_as_billing"] is False
+        assert update_response.json()["portal_access_enabled"] is False
     finally:
         app.dependency_overrides.clear()
         Base.metadata.drop_all(bind=engine)
