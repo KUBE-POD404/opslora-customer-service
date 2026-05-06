@@ -69,9 +69,24 @@ def test_customer_api_crud_and_exists_contract():
         assert list_response.status_code == 200
         assert [customer["id"] for customer in list_response.json()] == [customer_id]
 
+        filtered_response = client.get("/api/v1/customers/?search=ABCDE&portal_access_enabled=true")
+        assert filtered_response.status_code == 200
+        assert [customer["id"] for customer in filtered_response.json()] == [customer_id]
+
         exists_response = client.get(f"/api/v1/customers/{customer_id}/exists")
         assert exists_response.status_code == 200
         assert exists_response.json() == {"exists": True}
+
+        snapshot_response = client.get(f"/api/v1/customers/{customer_id}/order-snapshot")
+        assert snapshot_response.status_code == 200
+        assert snapshot_response.json()["gstin"] == "29ABCDE1234F1Z5"
+
+        portal_response = client.patch(
+            f"/api/v1/customers/{customer_id}/portal-access",
+            json={"portal_access_enabled": False},
+        )
+        assert portal_response.status_code == 200
+        assert portal_response.json()["portal_access_enabled"] is False
 
         update_response = client.put(
             f"/api/v1/customers/{customer_id}",
@@ -93,6 +108,16 @@ def test_customer_api_crud_and_exists_contract():
         assert update_response.json()["phone"] == "+91-9999999999"
         assert update_response.json()["shipping_same_as_billing"] is False
         assert update_response.json()["portal_access_enabled"] is False
+
+        status_response = client.patch(
+            f"/api/v1/customers/{customer_id}/status",
+            json={"status": "INACTIVE"},
+        )
+        assert status_response.status_code == 200
+        assert status_response.json()["status"] == "INACTIVE"
+
+        inactive_snapshot_response = client.get(f"/api/v1/customers/{customer_id}/order-snapshot")
+        assert inactive_snapshot_response.status_code == 409
     finally:
         app.dependency_overrides.clear()
         Base.metadata.drop_all(bind=engine)

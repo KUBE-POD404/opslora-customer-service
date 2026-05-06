@@ -5,8 +5,11 @@ from app.schemas import CustomerCreate, CustomerUpdate
 from app.services.customer_service import (
     create_customer_service,
     customer_exists,
+    get_customer_order_snapshot,
     get_customer,
     list_customers_service,
+    update_customer_portal_access,
+    update_customer_status,
     update_customer,
 )
 
@@ -99,3 +102,55 @@ def test_customer_profile_fields_are_persisted(db_session):
     assert customer.gstin == "29ABCDE1234F1Z5"
     assert customer.portal_access_enabled is True
     assert customer.payment_terms_days == 30
+
+
+def test_customer_list_filters_by_search_status_type_and_portal(db_session):
+    active = create_customer_service(
+        db_session,
+        customer_payload(
+            "Acme Pvt Ltd",
+            "accounts@acme.example.com",
+            gstin="29ABCDE1234F1Z5",
+            portal_access_enabled=True,
+        ),
+        1,
+        101,
+    )
+    inactive = create_customer_service(
+        db_session,
+        customer_payload(
+            "Personal Buyer",
+            "buyer@example.com",
+            customer_type="INDIVIDUAL",
+            status="INACTIVE",
+        ),
+        1,
+        101,
+    )
+
+    assert list_customers_service(db_session, 1, search="ABCDE") == [active]
+    assert list_customers_service(db_session, 1, status="INACTIVE") == [inactive]
+    assert list_customers_service(db_session, 1, customer_type="INDIVIDUAL") == [inactive]
+    assert list_customers_service(db_session, 1, portal_access_enabled=True) == [active]
+
+
+def test_customer_status_and_portal_access_updates(db_session):
+    customer = create_customer_service(db_session, customer_payload(), 1, 101)
+
+    inactive = update_customer_status(db_session, customer.id, 1, status="INACTIVE")
+    assert inactive.status == "INACTIVE"
+
+    portal_enabled = update_customer_portal_access(db_session, customer.id, 1, True)
+    assert portal_enabled.portal_access_enabled is True
+
+
+def test_customer_order_snapshot_rejects_inactive_customer(db_session):
+    customer = create_customer_service(
+        db_session,
+        customer_payload(status="INACTIVE"),
+        1,
+        101,
+    )
+
+    with pytest.raises(ConflictException):
+        get_customer_order_snapshot(db_session, customer.id, 1)

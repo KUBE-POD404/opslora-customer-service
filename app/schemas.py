@@ -93,3 +93,41 @@ class CustomerResponse(CustomerBase):
 
 class CustomerUpdate(CustomerBase):
     name: str = Field(..., min_length=2, max_length=100)
+
+
+class CustomerStatusUpdate(BaseModel):
+    status: CustomerStatus
+
+
+class CustomerPortalAccessUpdate(BaseModel):
+    portal_access_enabled: bool
+
+
+class CustomerOrderSnapshot(BaseModel):
+    id: int
+    name: str
+    display_name: str | None = None
+    email: EmailStr
+    phone: str | None = None
+    customer_type: CustomerType
+    status: CustomerStatus
+    tax_id: str | None = None
+    gstin: str | None = None
+    tax_registration_type: str | None = None
+    place_of_supply: str | None = None
+    billing_address_line1: str | None = None
+    billing_address_line2: str | None = None
+    billing_city: str | None = None
+    billing_state: str | None = None
+    billing_postal_code: str | None = None
+    billing_country: str | None = None
+    shipping_same_as_billing: bool = True
+    shipping_address_line1: str | None = None
+    shipping_address_line2: str | None = None
+    shipping_city: str | None = None
+    shipping_state: str | None = None
+    shipping_postal_code: str | None = None
+    shipping_country: str | None = None
+    payment_terms_days: int | None = None
+
+    model_config = ConfigDict(from_attributes=True)

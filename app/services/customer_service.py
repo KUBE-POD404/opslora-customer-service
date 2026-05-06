@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.models.customer import Customer
 from app.exceptions.custom_exceptions import NotFoundException, ConflictException
-from app.schemas import CustomerCreate, CustomerUpdate
+from app.schemas import CustomerCreate, CustomerStatus, CustomerUpdate
 
 logger = logging.getLogger(__name__)
 
@@ -75,18 +75,36 @@ def list_customers_service(
     db: Session,
     organization_id: int,
     offset: int = 0,
-    limit: int = 15
+    limit: int = 15,
+    search: str | None = None,
+    status: str | None = None,
+    customer_type: str | None = None,
+    portal_access_enabled: bool | None = None,
 ):
     logger.info("Listing customers", extra={"offset": offset, "limit": limit})
 
-    return (
-        db.query(Customer)
-        .filter(Customer.organization_id == organization_id)
-        .order_by(Customer.id.desc())
-        .offset(offset)
-        .limit(limit)
-        .all()
-    )
+    query = db.query(Customer).filter(Customer.organization_id == organization_id)
+
+    if search:
+        pattern = f"%{search.strip()}%"
+        query = query.filter(
+            Customer.name.ilike(pattern)
+            | Customer.display_name.ilike(pattern)
+            | Customer.email.ilike(pattern)
+            | Customer.phone.ilike(pattern)
+            | Customer.gstin.ilike(pattern)
+        )
+
+    if status:
+        query = query.filter(Customer.status == status)
+
+    if customer_type:
+        query = query.filter(Customer.customer_type == customer_type)
+
+    if portal_access_enabled is not None:
+        query = query.filter(Customer.portal_access_enabled == portal_access_enabled)
+
+    return query.order_by(Customer.id.desc()).offset(offset).limit(limit).all()
 
 
 def update_customer(
@@ -144,3 +162,42 @@ def customer_exists(
     )
 
     return customer is not None
+
+
+def update_customer_status(
+    db: Session,
+    customer_id: int,
+    organization_id: int,
+    status: CustomerStatus,
+) -> Customer:
+    customer = get_customer(db, customer_id, organization_id)
+    customer.status = status.value if hasattr(status, "value") else status
+    customer.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(customer)
+    return customer
+
+
+def update_customer_portal_access(
+    db: Session,
+    customer_id: int,
+    organization_id: int,
+    portal_access_enabled: bool,
+) -> Customer:
+    customer = get_customer(db, customer_id, organization_id)
+    customer.portal_access_enabled = portal_access_enabled
+    customer.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(customer)
+    return customer
+
+
+def get_customer_order_snapshot(
+    db: Session,
+    customer_id: int,
+    organization_id: int,
+) -> Customer:
+    customer = get_customer(db, customer_id, organization_id)
+    if customer.status != CustomerStatus.ACTIVE.value:
+        raise ConflictException("Customer is inactive")
+    return customer
