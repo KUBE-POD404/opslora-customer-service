@@ -38,8 +38,8 @@ class Customer(Base):
     portal_access_enabled = Column(Boolean, nullable=False, default=False)
     portal_invited_at = Column(DateTime(timezone=True), nullable=True)
     created_by_user_id = Column(Integer, nullable=False)
-    created_at = Column(DateTime(timezone=True), default=datetime.now(timezone.utc))
-    updated_at = Column(DateTime(timezone=True), default=datetime.now(timezone.utc))
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     __table_args__ = (
         UniqueConstraint("organization_id", "email", name="uq_customers_org_email"),
